@@ -34,37 +34,17 @@ export const loader = async ({ request }) => {
   return json({ shop: session.shop.replace(".myshopify.com", "") });
 };
 
-// async function selectProduct() {
-//   const products = await window.shopify.resourcePicker({
-//     type: "product",
-//     action: "select", // customized action verb, either 'select' or 'add',
-//   });
-//   if (products) {
-//     const { images, id, variants, title, handle } = products[0];
-
-//     const resultage = {
-//       productId: id,
-//       productVariantId: variants[0].id,
-//       productTitle: title,
-//       productHandle: handle,
-//       productAlt: images[0]?.altText,
-//       productImage: images[0]?.originalSrc,
-//     };
-
-//     return resultage;
-//   }
-// }
-
 export async function action({ request }) {
   const { admin } = await authenticate.admin(request);
 
-  
+  const bundleParentTitle = request.bundleTitle;
+
   const response = await admin.graphql(
     `#graphql
       mutation CreateProductBundle($input: ProductInput!) {
         productCreate(input: $input) {
           product{
-            title
+            title,
             variants(first: 10) {
               edges{
                 node{
@@ -80,12 +60,12 @@ export async function action({ request }) {
         }
       }`,
       {
-        variables: {
-          input: {
-            title: "The reeeee graphQL Bundle",
-          }
-        }
-      }
+       variables: {
+        input: {
+          title: `${bundleParentTitle}`,
+        },
+      },
+    }
   );
   
   const responseJson = await response.json();
@@ -127,47 +107,48 @@ export default function BuildBundle() {
 
   async function selectProduct() {
   
-    const products = await window.shopify.resourcePicker({
+    const selectedProducts = await window.shopify.resourcePicker({
       type: "product",
       multiple: true,
-      action: "select", // customized action verb, either 'select' or 'add',
+      action: "select",
     });
   
-    if (products) {
-      const { images, id, variants, title, handle } = products[0];
-  
-        setFormState({
-          ...formState,
-        productId: id,
-        productVariantId: variants[0].id,
-        productTitle: title,
-        productHandle: handle,
-        productAlt: images[0]?.altText,
-        productImage: images[0]?.originalSrc,
+    if (selectedProducts) {
+      const updatedFormState = selectedProducts.map((product) => {
+        const { images, id, variants, title, handle } = product;
+        return {
+          productId: id,
+          productVariantId: variants[0].id,
+          productTitle: title,
+          productHandle: handle,
+          productAlt: images[0]?.altText,
+          productImage: images[0]?.originalSrc,
+        };
       });
-      
-      const BundleProducts = () => {
-        const bundledProducts = Object.values(formState);
-        return (
-          bundledProducts.map((bundleItem,index) => 
-            <HorizontalStack key={index} blockAlign="center" gap={"5"}>
-              <Thumbnail
-                source={bundleItem.productImage || ImageMajor}
-                alt={bundleItem.productAlt}
-              />
-              <Text as="span" variant="headingMd" fontWeight="semibold">
-                {bundleItem.productTitle}
-              </Text>
-            </HorizontalStack>
-          )
-        )
-      }
-
+  
+      setFormState({
+        ...formState,
+        selectedProducts: updatedFormState
+      });  
     }
-    console.log(products);
-    
+
   }
- 
+  const BundleProducts = () => {
+    const bundledProducts = formState.selectedProducts;
+    return (
+      bundledProducts.map((bundledProducts,index) => 
+        <HorizontalStack key={bundledProducts.productId} blockAlign="center" gap={"5"}>
+          <Thumbnail
+            source={bundledProducts.productImage || ImageMajor}
+            alt={bundledProducts.productAlt}
+          />
+          <Text as="span" variant="headingMd" fontWeight="semibold">
+            {bundledProducts.productTitle}
+          </Text>
+        </HorizontalStack>
+      )
+    )
+  }
 
   useEffect(() => {
     if (productId) {
@@ -178,15 +159,17 @@ export default function BuildBundle() {
   }, [productId]);
   
   const CreateProductBundle = () => {
-    const data = {
-      title: formState.title,
-      productId: formState.productId || "",
-      productVariantId: formState.productVariantId || "",
-      productHandle: formState.productHandle || "",
-      destination: formState.destination,
+    const productsData = formState.selectedProducts;
+  
+    const bundleData = {
+      bundleTitle,
+      bundlePrice, 
+      products: productsData,
     };
-    submit({bundleTitle, bundlePrice, data}, { replace: false, method: "POST" });
-  } 
+  
+    submit(JSON.stringify(bundleData), { replace: false, method: "POST" });
+    // submit(bundleData, { replace: false, method: "POST" });
+  };
 
   return (
     <Page>
@@ -234,22 +217,22 @@ export default function BuildBundle() {
                   <Card>
               <VerticalStack gap="2">
                 <HorizontalStack align="space-between">
-                  {formState.productId ? (
+                  {formState.selectedProducts ? (
                     <Button plain onClick={selectProduct}>
                       Change product
                     </Button>
                   ) : null}
                 </HorizontalStack>
-                {formState.productId ? (
-                  {BundleProducts}
+                {formState.selectedProducts ? (
+                  <BundleProducts/>
                 ) : (
                   <VerticalStack gap="2">
                     <Button onClick={selectProduct} id="select-product">
                       Select product
                     </Button>
-                    {errors.productId ? (
+                    {errors.selectedProducts ? (
                       <InlineError
-                        message={errors.productId}
+                        message={errors.selectedProducts}
                         fieldID="myFieldID"
                       />
                     ) : null}
