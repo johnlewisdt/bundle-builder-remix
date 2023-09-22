@@ -25,12 +25,10 @@ import {
   Thumbnail,
 } from "@shopify/polaris";
 import { ImageMajor } from "@shopify/polaris-icons";
-
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }) => {
   const { session } = await authenticate.admin(request);
-
   return json({ shop: session.shop.replace(".myshopify.com", "") });
 };
 
@@ -42,106 +40,174 @@ export async function action({ request }) {
   const requestBody = await request.formData();
   const requestData = JSON.parse(requestBody.get('json'));
 
-console.log(`Request Body: ${requestBody}`);
+  const bundledProductIds = [];
+  const productVariantIds = [];
+  
+  requestData.products.forEach(bundledProduct => {
+    bundledProductIds.push(bundledProduct.productId);
+    bundledProduct.productVariantId.forEach(variantId => {
+      productVariantIds.push(variantId);
+    });
+  });
 
-  const component_quantities = "[1,1,1,1,1]"
-  const component_reference = [];
-  component_reference.push(
-    // t shirt
-    "gid://shopify/ProductVariant/46715308048677",
-    "gid://shopify/ProductVariant/46715308343589",
-    "gid://shopify/ProductVariant/46715308376357",
-    "gid://shopify/ProductVariant/46715308409125",
-    "gid://shopify/ProductVariant/46715308441893",
-    // shorts
-    "gid://shopify/ProductVariant/46715524186405",
-    "gid://shopify/ProductVariant/46715524448549",
-    "gid://shopify/ProductVariant/46715524481317",
-    "gid://shopify/ProductVariant/46715524546853",
-    "gid://shopify/ProductVariant/46715524612389",
-    "gid://shopify/ProductVariant/46715524645157",
-    // whistle
-    "gid://shopify/ProductVariant/46715562524965",
-    "gid://shopify/ProductVariant/46715562623269",
-    // baseball cap
-    "gid://shopify/ProductVariant/46715865334053",
-    //lanyard
-    "gid://shopify/ProductVariant/46715858616613"
-  );
+console.log("Length:"+requestData.products.length)
+  const amounts = [];
+  for (let i=0; i<requestData.products.length; i++) {
+    amounts.push("1");  
+  }
+  console.log("Qtys: "+amounts.toString());
 
+    const component_quantities = "[" + amounts.join(",") + "]";
+  console.log("Qtys: "+component_quantities);
+
+  // const component_quantities = amounts;
+  
+  const component_reference = productVariantIds;
+  
   const formData = requestData;
 
-  
-  
-  console.log(`RD: ${requestData}`);
+  console.log(`RD: ${JSON.stringify(requestData)}`);
 
-  const response = await admin.graphql(
-   `#graphql
-    mutation CreateProductBundle($input: ProductInput!) {
-      productCreate(input: $input) {
-        product {
-          title
-          variants(first: 1) {
-            edges {
-              node {
-                id
-                price
-                metafields(first: 2) {
-                  edges {
-                    node {
-                      key
-                      namespace
-                      value
-                    }
-                    node {
-                      key
-                      namespace
-                      value
+  buildRelatedBundle();
+
+  async function buildRelatedBundle() {
+    try {
+      const response = await admin.graphql(
+        `#graphql
+        mutation CreateProductBundle($input: ProductInput!) {
+          productCreate(input: $input) {
+            product {
+              title
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    price
+                    metafields(first: 2) {
+                      edges {
+                        node {
+                          key
+                          namespace
+                          value
+                        }
+                        node {
+                          key
+                          namespace
+                          value
+                        }
+                      }
                     }
                   }
                 }
               }
             }
+            userErrors {
+              field
+              message
+            }
           }
-        }
-        userErrors {
-          field
-          message
-        }
-      }
-    }`,
-    {
-      variables: {
-        input: {
-          title: formData.bundleTitle,
-          variants: [
-            {
-              price: formData.bundlePrice,
-              metafields: [
+        }`,
+        {
+          variables: {
+            input: {
+              title: formData.bundleTitle,
+              variants: [
                 {
-                  key: "component_quantities",
-                  namespace: "custom",
-                  value: component_quantities,
-                },
-                {
-                  key: "component_reference",
-                  namespace: "custom" ,
-                  value: JSON.stringify(component_reference),
+                  price: formData.bundlePrice,
+                  metafields: [
+                    {
+                      key: "component_quantities",
+                      namespace: "custom",
+                      value: component_quantities,
+                    },
+                    {
+                      key: "component_reference",
+                      namespace: "custom" ,
+                      value: JSON.stringify(component_reference),
+                    }
+                  ]
                 }
               ]
             }
-          ]
+          }
         }
+      );
+      if (!response.ok) {
+        throw new Error('Bundle creation failed');
       }
+      
+      const responseJson = await response.json();
+      
+     // await bulkAssociateVariants();
+      
+      return {
+        product: responseJson.data.productCreate.product,
+      };
+    } catch (error) {
+      console.error('Error building Bundle:', error);
+      throw error; // Rethrow the error if needed
     }
-  );
   
-  const responseJson = await response.json();
+      
+    // async function bulkAssociateVariants() {
+      
+    //   const response2 = await admin.graphql(
+    //     `#graphql
+    //     mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+    //       productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+    //         product {
+    //           # Product fields
+    //         }
+    //         productVariants {
+    //           # ProductVariant fields
+    //         }
+    //         userErrors {
+    //           field
+    //           message
+    //         }
+    //       }
+    //     }`,
+    //     {
+    //       variables: {
+    //         input: {
+    //           title: formData.bundleTitle,
+    //           variants: [
+    //             {
+    //               price: formData.bundlePrice,
+    //               metafields: [
+    //                 {
+    //                   key: "component_quantities",
+    //                   namespace: "custom",
+    //                   value: component_quantities,
+    //                 },
+    //                 {
+    //                   key: "component_reference",
+    //                   namespace: "custom" ,
+    //                   value: JSON.stringify(component_reference),
+    //                 }
+    //               ]
+    //             }
+    //           ]
+    //         }
+    //       }
+    //     }
+    //   );
+    //   const response2Json = await response2.json();
 
-  return json({
-    product: responseJson.data.productCreate.product,
-    // log: console.log(responseJson),
-  });
+    //   return {
+    //     product: response2Json.data.productVariantsBulkUpdate.product,
+    //   };
+
+    // }
+    
+  }
+  const responseJson = await buildRelatedBundle();
+
+  return {
+    product: responseJson.data,
+  };
+
+  
 }
 
 export default function BuildBundle() {
@@ -206,9 +272,12 @@ export default function BuildBundle() {
     if (selectedProducts) {
       const updatedFormState = selectedProducts.map((product) => {
         const { images, id, variants, title, handle } = product;
+
+        const variantIds = variants.map((variant) => variant.id);
+
         return {
           productId: id,
-          productVariantId: variants[0].id,
+          productVariantId: variantIds,
           productTitle: title,
           productHandle: handle,
           productAlt: images[0]?.altText,
@@ -257,10 +326,10 @@ export default function BuildBundle() {
       products: formState.selectedProducts,
     };
 
-
     console.log(JSON.stringify(bundleData));
+
+    // Note: remix ONLY sends useSubmit data as application/x-www-form-urlencoded - so must be coerced to JSON
     submit({json: JSON.stringify(bundleData)}, { replace: false, method: "POST" })
-    // submit(bundleData, { replace: false, method: "POST" });
   };
 
   return (

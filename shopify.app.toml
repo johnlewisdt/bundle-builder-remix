@@ -2,7 +2,7 @@
 
 name = "Bundle Middleware"
 client_id = "af1ae5f21970014e3a507998ded09ae5"
-application_url = "https://criminal-steel-ra-minister.trycloudflare.com"
+application_url = "https://cant-bosnia-photo-become.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://criminal-steel-ra-minister.trycloudflare.com/auth/callback",
-  "https://criminal-steel-ra-minister.trycloudflare.com/auth/shopify/callback",
-  "https://criminal-steel-ra-minister.trycloudflare.com/api/auth/callback"
+  "https://cant-bosnia-photo-become.trycloudflare.com/auth/callback",
+  "https://cant-bosnia-photo-become.trycloudflare.com/auth/shopify/callback",
+  "https://cant-bosnia-photo-become.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
