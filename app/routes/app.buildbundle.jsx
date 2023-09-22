@@ -34,37 +34,105 @@ export const loader = async ({ request }) => {
   return json({ shop: session.shop.replace(".myshopify.com", "") });
 };
 
+
 export async function action({ request }) {
   const { admin } = await authenticate.admin(request);
 
-  const bundleParentTitle = request.bundleTitle;
+  // Parse the request body to get formData
+  const requestBody = await request.formData();
+  const requestData = JSON.parse(requestBody.get('json'));
+
+console.log(`Request Body: ${requestBody}`);
+
+  const component_quantities = "[1,1,1,1,1]"
+  const component_reference = [];
+  component_reference.push(
+    // t shirt
+    "gid://shopify/ProductVariant/46715308048677",
+    "gid://shopify/ProductVariant/46715308343589",
+    "gid://shopify/ProductVariant/46715308376357",
+    "gid://shopify/ProductVariant/46715308409125",
+    "gid://shopify/ProductVariant/46715308441893",
+    // shorts
+    "gid://shopify/ProductVariant/46715524186405",
+    "gid://shopify/ProductVariant/46715524448549",
+    "gid://shopify/ProductVariant/46715524481317",
+    "gid://shopify/ProductVariant/46715524546853",
+    "gid://shopify/ProductVariant/46715524612389",
+    "gid://shopify/ProductVariant/46715524645157",
+    // whistle
+    "gid://shopify/ProductVariant/46715562524965",
+    "gid://shopify/ProductVariant/46715562623269",
+    // baseball cap
+    "gid://shopify/ProductVariant/46715865334053",
+    //lanyard
+    "gid://shopify/ProductVariant/46715858616613"
+  );
+
+  const formData = requestData;
+
+  
+  
+  console.log(`RD: ${requestData}`);
 
   const response = await admin.graphql(
-    `#graphql
-      mutation CreateProductBundle($input: ProductInput!) {
-        productCreate(input: $input) {
-          product{
-            title,
-            variants(first: 10) {
-              edges{
-                node{
-                  id
+   `#graphql
+    mutation CreateProductBundle($input: ProductInput!) {
+      productCreate(input: $input) {
+        product {
+          title
+          variants(first: 1) {
+            edges {
+              node {
+                id
+                price
+                metafields(first: 2) {
+                  edges {
+                    node {
+                      key
+                      namespace
+                      value
+                    }
+                    node {
+                      key
+                      namespace
+                      value
+                    }
+                  }
                 }
               }
             }
           }
-          userErrors{
-            field
-            message
-          }
         }
-      }`,
-      {
-       variables: {
+        userErrors {
+          field
+          message
+        }
+      }
+    }`,
+    {
+      variables: {
         input: {
-          title: `${bundleParentTitle}`,
-        },
-      },
+          title: formData.bundleTitle,
+          variants: [
+            {
+              price: formData.bundlePrice,
+              metafields: [
+                {
+                  key: "component_quantities",
+                  namespace: "custom",
+                  value: component_quantities,
+                },
+                {
+                  key: "component_reference",
+                  namespace: "custom" ,
+                  value: JSON.stringify(component_reference),
+                }
+              ]
+            }
+          ]
+        }
+      }
     }
   );
   
@@ -72,6 +140,7 @@ export async function action({ request }) {
 
   return json({
     product: responseJson.data.productCreate.product,
+    // log: console.log(responseJson),
   });
 }
 
@@ -91,8 +160,29 @@ export default function BuildBundle() {
   const [cleanFormState, setCleanFormState] = useState(productForm);
   const isDirty = JSON.stringify(formState) !== JSON.stringify(cleanFormState);
 
-  const handleBundleTitleChange = (/** @type {React.SetStateAction<string>} */ value) => setBundleTitle(value);
-  const handleBundlePriceChange = (/** @type {React.SetStateAction<string>} */ value) => setBundlePrice(value);
+  const [formData, setFormData] = useState({
+    bundleTitle: "",
+    bundlePrice: "",
+    selectedProducts: [],
+  });
+
+  // const handleBundleTitleChange = (/** @type {React.SetStateAction<string>} */ value) => setBundleTitle(value);
+  // const handleBundlePriceChange = (/** @type {React.SetStateAction<string>} */ value) => setBundlePrice(value);
+
+  const handleBundleTitleChange = (value) => {
+    setFormData({
+      ...formData,
+      bundleTitle: value,
+    });
+  };
+
+  const handleBundlePriceChange = (value) => {
+    setFormData({
+      ...formData,
+      bundlePrice: value,
+    });
+  };
+
   // const handleSubmit = (event) => console.log(event) 
 
   const submit = useSubmit();
@@ -158,16 +248,18 @@ export default function BuildBundle() {
     }
   }, [productId]);
   
+  
   const CreateProductBundle = () => {
-    const productsData = formState.selectedProducts;
-  
+   
     const bundleData = {
-      bundleTitle,
-      bundlePrice, 
-      products: productsData,
+      bundleTitle: formData.bundleTitle,
+      bundlePrice: formData.bundlePrice,
+      products: formState.selectedProducts,
     };
-  
-    submit(JSON.stringify(bundleData), { replace: false, method: "POST" });
+
+
+    console.log(JSON.stringify(bundleData));
+    submit({json: JSON.stringify(bundleData)}, { replace: false, method: "POST" })
     // submit(bundleData, { replace: false, method: "POST" });
   };
 
@@ -196,14 +288,14 @@ export default function BuildBundle() {
                     type="text"
                     autoComplete="off"
                     onChange={handleBundleTitleChange}
-                    value={bundleTitle}
+                    value={formData.bundleTitle}
                   />
                   <TextField
                     label="Price"
                     type="number"
                     autoComplete="off"
                     onChange={handleBundlePriceChange}
-                    value={bundlePrice}
+                    value={formData.bundlePrice}
                   />
                   </FormLayout>
                 </VerticalStack>

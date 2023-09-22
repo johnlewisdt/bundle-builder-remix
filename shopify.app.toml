@@ -2,7 +2,7 @@
 
 name = "Bundle Middleware"
 client_id = "af1ae5f21970014e3a507998ded09ae5"
-application_url = "https://suburban-defensive-bedroom-style.trycloudflare.com"
+application_url = "https://criminal-steel-ra-minister.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://suburban-defensive-bedroom-style.trycloudflare.com/auth/callback",
-  "https://suburban-defensive-bedroom-style.trycloudflare.com/auth/shopify/callback",
-  "https://suburban-defensive-bedroom-style.trycloudflare.com/api/auth/callback"
+  "https://criminal-steel-ra-minister.trycloudflare.com/auth/callback",
+  "https://criminal-steel-ra-minister.trycloudflare.com/auth/shopify/callback",
+  "https://criminal-steel-ra-minister.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
