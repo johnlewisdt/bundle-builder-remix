@@ -57,16 +57,14 @@ console.log("Length:"+requestData.products.length)
   }
   console.log("Qtys: "+amounts.toString());
 
-    const component_quantities = "[" + amounts.join(",") + "]";
+  const component_quantities = "[" + amounts.join(",") + "]";
   console.log("Qtys: "+component_quantities);
 
-  // const component_quantities = amounts;
-  
   const component_reference = productVariantIds;
   
   const formData = requestData;
 
-  console.log(`RD: ${JSON.stringify(requestData)}`);
+  console.log(`requestData: ${JSON.stringify(requestData)}`);
 
   buildRelatedBundle();
 
@@ -176,9 +174,9 @@ console.log("Length:"+requestData.products.length)
     //               price: formData.bundlePrice,
     //               metafields: [
     //                 {
-    //                   key: "component_quantities",
+    //                   key: "component_parent",
     //                   namespace: "custom",
-    //                   value: component_quantities,
+    //                   value: component_parent,
     //                 },
     //                 {
     //                   key: "component_reference",
