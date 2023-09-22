@@ -134,69 +134,79 @@ console.log("Length:"+requestData.products.length)
         throw new Error('Bundle creation failed');
       }
       
-      const responseJson = await response.json();
+      const BuildResponseJson = await response.json();
+      const componentParent = BuildResponseJson.data.productCreate.product.productId
       
-     // await bulkAssociateVariants();
+      console.log("response data is "+ BuildResponseJson.data.productCreate);
+
+      await bulkAssociateVariants(componentParent, productVariantIds);
       
       return {
         product: responseJson.data.productCreate.product,
       };
     } catch (error) {
       console.error('Error building Bundle:', error);
-      throw error; // Rethrow the error if needed
+      throw error;
     }
   
       
-    // async function bulkAssociateVariants() {
+    async function bulkAssociateVariants(componentParent, productVariantIds) {
       
-    //   const response2 = await admin.graphql(
-    //     `#graphql
-    //     mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-    //       productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-    //         product {
-    //           # Product fields
-    //         }
-    //         productVariants {
-    //           # ProductVariant fields
-    //         }
-    //         userErrors {
-    //           field
-    //           message
-    //         }
-    //       }
-    //     }`,
-    //     {
-    //       variables: {
-    //         input: {
-    //           title: formData.bundleTitle,
-    //           variants: [
-    //             {
-    //               price: formData.bundlePrice,
-    //               metafields: [
-    //                 {
-    //                   key: "component_parent",
-    //                   namespace: "custom",
-    //                   value: component_parent,
-    //                 },
-    //                 {
-    //                   key: "component_reference",
-    //                   namespace: "custom" ,
-    //                   value: JSON.stringify(component_reference),
-    //                 }
-    //               ]
-    //             }
-    //           ]
-    //         }
-    //       }
-    //     }
-    //   );
-    //   const response2Json = await response2.json();
+      const graphQLVariable = {};
+      
+      productVariantIds.forEach(id => {
+        const variantJson = {
+          id: id,
+          metafields: [
+            {
+              key: "component_parents",
+              namespace: "custom",
+              value: componentParent,
+            }
+          ]
+        };
+        
+        graphQLVariable.push(variantJson);
+        console.log("variantjson: "+graphQLVariable);
+      });
 
-    //   return {
-    //     product: response2Json.data.productVariantsBulkUpdate.product,
-    //   };
+      const response2 = await admin.graphql(
+        `#graphql
+        mutation productVariantsBulkUpdate($variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(variants: $variants) {
+            productVariants {
+              id
+              metafields(first: 1) {
+                 edges {
+                   node {
+                     key
+                     namespace
+                     value
+                   }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            input: {
+              variants: [
+                `${graphQLVariable}`,
+              ]
+            }
+          }
+        }
+      );
+      const response2Json = await response2.json();
 
-    // }
+      return {
+        product: response2Json.data.productVariantsBulkUpdate.productVariants,
+      };
+
+    }
     
   }
   const responseJson = await buildRelatedBundle();
@@ -205,7 +215,6 @@ console.log("Length:"+requestData.products.length)
     product: responseJson.data,
   };
 
-  
 }
 
 export default function BuildBundle() {
