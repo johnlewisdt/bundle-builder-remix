@@ -2,7 +2,7 @@
 
 name = "Bundle Middleware"
 client_id = "af1ae5f21970014e3a507998ded09ae5"
-application_url = "https://throat-inn-urge-shadows.trycloudflare.com"
+application_url = "https://recover-turning-lifetime-politics.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://throat-inn-urge-shadows.trycloudflare.com/auth/callback",
-  "https://throat-inn-urge-shadows.trycloudflare.com/auth/shopify/callback",
-  "https://throat-inn-urge-shadows.trycloudflare.com/api/auth/callback"
+  "https://recover-turning-lifetime-politics.trycloudflare.com/auth/callback",
+  "https://recover-turning-lifetime-politics.trycloudflare.com/auth/shopify/callback",
+  "https://recover-turning-lifetime-politics.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]

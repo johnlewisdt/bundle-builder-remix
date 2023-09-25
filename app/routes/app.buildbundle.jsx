@@ -60,17 +60,13 @@ console.log("Length:"+requestData.products.length)
   const component_quantities = "[" + amounts.join(",") + "]";
   console.log("Qtys: "+component_quantities);
 
-  const component_reference = productVariantIds;
-  
+  const component_reference = JSON.stringify(productVariantIds);
+  console.log("refids: "+JSON.stringify(component_reference));
   const formData = requestData;
 
   console.log(`requestData: ${JSON.stringify(requestData)}`);
 
-  buildRelatedBundle();
-
-  async function buildRelatedBundle() {
-    try {
-      const response = await admin.graphql(
+      const responseCreate = await admin.graphql(
         `#graphql
         mutation CreateProductBundle($input: ProductInput!) {
           productCreate(input: $input) {
@@ -83,11 +79,6 @@ console.log("Length:"+requestData.products.length)
                     price
                     metafields(first: 2) {
                       edges {
-                        node {
-                          key
-                          namespace
-                          value
-                        }
                         node {
                           key
                           namespace
@@ -121,7 +112,7 @@ console.log("Length:"+requestData.products.length)
                     {
                       key: "component_reference",
                       namespace: "custom" ,
-                      value: JSON.stringify(component_reference),
+                      value: component_reference,
                     }
                   ]
                 }
@@ -130,59 +121,101 @@ console.log("Length:"+requestData.products.length)
           }
         }
       );
-      if (!response.ok) {
+      if (!responseCreate.ok) {
         throw new Error('Bundle creation failed');
       }
+      // else {
+      //   console.log("RESPONSE: "+response.json());
+      // }
       
-      const BuildResponseJson = await response.json();
-      const componentParent = BuildResponseJson.data.productCreate.product.productId
+      const buildResponseJson = await responseCreate.json();
       
-      console.log("response data is "+ BuildResponseJson.data.productCreate);
+      console.log("response data is "+ JSON.stringify(buildResponseJson.data.productCreate));
+      console.log("parent variant id is "+ JSON.stringify(buildResponseJson.data.productCreate.product.variants.edges[0].node.id));
+      const componentParent = buildResponseJson.data.productCreate.product.variants.edges[0].node.id;
+      const componentParentEscaped = componentParent;
 
-      await bulkAssociateVariants(componentParent, productVariantIds);
+
+
       
-      return {
-        product: responseJson.data.productCreate.product,
-      };
-    } catch (error) {
-      console.error('Error building Bundle:', error);
-      throw error;
-    }
+      // bulkAssociateVariants();
+      
+      // return {
+      //   product: buildResponseJson.data,
+      // };
+    // } catch (error) {
+    //   console.error('Error building Bundle:', error);
+    //   throw error;
+    // }
   
       
-    async function bulkAssociateVariants(componentParent, productVariantIds) {
+    //  function bulkAssociateVariants() {
       
-      const graphQLVariable = {};
-      
+      const graphQLVariable = [];
       productVariantIds.forEach(id => {
-        const variantJson = {
-          id: id,
-          metafields: [
-            {
-              key: "component_parents",
-              namespace: "custom",
-              value: componentParent,
-            }
-          ]
-        };
-        
+        let variantJson = {
+          "id": id,
+          "quantity": 1,
+        }
         graphQLVariable.push(variantJson);
-        console.log("variantjson: "+graphQLVariable);
-      });
+          
+          // metafields: [
+          //   {
+          //     key: "component_parents",
+          //     namespace: "custom",
+          //     value: componentParent,
+          //   }
+          // ]
+          //   return graphQLVariable;
+          console.log("GQL variable: "+graphQLVariable);
+        });
+        const jsonGqlVariable = JSON.stringify(graphQLVariable);
+        const jsonParsedVariable = JSON.parse(jsonGqlVariable);
+        console.log("GQL JSON variable: "+jsonGqlVariable);
 
-      const response2 = await admin.graphql(
+      // }
+        const responseRelate = await admin.graphql(
         `#graphql
-        mutation productVariantsBulkUpdate($variants: [ProductVariantsBulkInput!]!) {
-          productVariantsBulkUpdate(variants: $variants) {
-            productVariants {
+        mutation CreateBundleComponents($input: [ProductVariantRelationshipUpdateInput!]!) {
+          productVariantRelationshipBulkUpdate(input: $input) {
+            parentProductVariants {
               id
-              metafields(first: 1) {
-                 edges {
-                   node {
-                     key
-                     namespace
-                     value
-                   }
+              productVariantComponents(first: 10) {
+                nodes{
+                  id
+                  quantity
+                  productVariant {
+                    id
+                  }
+                }
+              }
+            }
+            userErrors {
+              code
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: {
+            input: {
+              parentProductVariantId: `${componentParentEscaped}`,
+              productVariantRelationshipsToCreate: jsonParsedVariable
+            }
+          }
+        }
+      );
+      const responseRelateJson = await responseRelate.json();
+      console.log("response2 "+JSON.stringify(responseRelateJson))
+
+      const enableComponents = await admin.graphql(
+        `#graphql
+        mutation productVariantUpdate($input: ProductVariantInput!) {
+          productVariantUpdate(input: $input) {
+            productVariant {
+              id
+              requiresComponents
             }
             userErrors {
               field
@@ -192,29 +225,102 @@ console.log("Length:"+requestData.products.length)
         }`,
         {
           variables: {
-            input: {
-              variants: [
-                `${graphQLVariable}`,
-              ]
-            }
+              input: {
+                id: `${componentParentEscaped}`,
+                requiresComponents: true,
+              }
           }
         }
       );
-      const response2Json = await response2.json();
+      if (!enableComponents.ok) {
+        throw new Error('Component link failed');
+      } else {
+        console.log("Component updated OK");
+      }
+
+      const enableComponentsJson = await enableComponents.json();
+      console.log("component response "+JSON.stringify(enableComponentsJson))
+
+
+
+      const bundleDataRef = formData;
+
+      for (const product of bundleDataRef.products) {
+        await createQuery(product);
+      }
+
+      async function createQuery(product) {
+
+        const metafield = [{
+          "id": `${componentParentEscaped}`, 
+          "component_reference": {
+            value: JSON.parse(component_reference)
+          },
+          "component_quantities": {
+            value: JSON.parse(component_quantities) 
+          }
+        }];
+
+        console.log("METAFIELD: "+JSON.stringify(metafield))
+
+        const variableData = {
+          variables: {
+            productId: product.productId,
+            variants: product.productVariantId.map(variantId => ({
+              id: variantId,
+              metafields: 
+                {
+                  key: "component_parents",
+                  namespace: "custom",
+                  value: JSON.stringify(metafield)
+                }
+            }))
+          }
+        }
+        const responseFinal = await admin.graphql(
+          `#graphql
+            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+              productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+                product {
+                  id
+                }
+                productVariants {
+                  id
+                  metafields(first: 2) {
+                    edges {
+                      node {
+                        namespace
+                        key
+                        value
+                      }
+                    }
+                  }
+                }
+                userErrors {
+                  field
+                  message
+                }
+              }
+            }`,
+            {
+              variables: variableData.variables,
+            }
+          );
+         
+        
+           let responseFinalJson = await responseFinal.json();
+          return(
+          {
+             product: responseFinalJson.data.productVariantsBulkUpdate.product,
+           } 
+           );
+      }
+ 
+    //  const responseCreateJson = await responseCreate.json();
 
       return {
-        product: response2Json.data.productVariantsBulkUpdate.productVariants,
+        product: "JOBS A GOOD UN",
       };
-
-    }
-    
-  }
-  const responseJson = await buildRelatedBundle();
-
-  return {
-    product: responseJson.data,
-  };
-
 }
 
 export default function BuildBundle() {
@@ -278,7 +384,7 @@ export default function BuildBundle() {
   
     if (selectedProducts) {
       const updatedFormState = selectedProducts.map((product) => {
-        const { images, id, variants, title, handle } = product;
+        const { images, id, variants, title } = product;
 
         const variantIds = variants.map((variant) => variant.id);
 
@@ -286,7 +392,6 @@ export default function BuildBundle() {
           productId: id,
           productVariantId: variantIds,
           productTitle: title,
-          productHandle: handle,
           productAlt: images[0]?.altText,
           productImage: images[0]?.originalSrc,
         };
@@ -336,7 +441,7 @@ export default function BuildBundle() {
     console.log(JSON.stringify(bundleData));
 
     // Note: remix ONLY sends useSubmit data as application/x-www-form-urlencoded - so must be coerced to JSON
-    submit({json: JSON.stringify(bundleData)}, { replace: false, method: "POST" })
+    submit({json: JSON.stringify(bundleData)}, { replace: false, method: "POST" });
   };
 
   return (
