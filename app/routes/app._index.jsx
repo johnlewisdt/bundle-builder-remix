@@ -1,11 +1,13 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { json } from "@remix-run/node";
+// import { useQuery } from '@apollo/client';
 import {
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
+import gql from 'graphql-tag';
 import {
   Page,
   Layout,
@@ -18,6 +20,8 @@ import {
   Divider,
   List,
   Link,
+  ResourceList,
+  ResourceItem,
 } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
@@ -75,6 +79,7 @@ export async function action({ request }) {
 }
 
 export default function Index() {
+
   const nav = useNavigation();
   const { shop } = useLoaderData();
   const actionData = useActionData();
@@ -88,24 +93,27 @@ export default function Index() {
     ""
   );
 
+  
+  
+
   useEffect(() => {
     if (productId) {
       shopify.toast.show("Product created");
     }
   }, [productId]);
 
-  const generateProduct = () => submit({}, { replace: true, method: "POST" });
+ // const generateProduct = () => submit({}, { replace: true, method: "POST" });
 
 
   return (
     <Page>
       <ui-title-bar title="Build a bundle">
-        <button variant="primary" onClick={generateProduct}>
+        {/* <button variant="primary" onClick={generateProduct}>
           Generate a product
         </button>
         <button onClick={generateProduct}>
-          Build a bundle
-        </button>
+          Statement Bundle Generator
+        </button> */}
       </ui-title-bar>
       <VerticalStack gap="5">
         <Layout>
@@ -114,44 +122,22 @@ export default function Index() {
               <VerticalStack gap="5">
                 <VerticalStack gap="2">
                   <Text as="h2" variant="headingMd">
-                    Current bundles
+                    Create a Bundle
                   </Text>
                   <Text variant="bodyMd" as="p">
-                    This embedded app template uses{" "}
-                    <Link
-                      url="https://shopify.dev/docs/apps/tools/app-bridge"
-                      target="_blank"
-                    >
-                      App Bridge
-                    </Link>{" "}
-                    Why not{" "}
+                    Click to {" "}
                     <Link url="/app/buildbundle">
                       Build a bundle
                     </Link>
-                    ? More info here: {" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql"
-                      target="_blank"
-                    >
-                      Admin GraphQL
-                    </Link>{" "}
                     .
                   </Text>
                 </VerticalStack>
                 <VerticalStack gap="2">
                   <Text as="h3" variant="headingMd">
-                    Get started with products
+                    Introduction
                   </Text>
                   <Text as="p" variant="bodyMd">
-                    Generate a product with GraphQL and get the JSON output for
-                    that product. Learn more about the{" "}
-                    <Link
-                      url="https://shopify.dev/docs/api/admin-graphql/latest/mutations/productCreate"
-                      target="_blank"
-                    >
-                      productCreate
-                    </Link>{" "}
-                    mutation in our API references.
+                    This app has been provided as a way to Generate a usable Bundle, easily. <br /><br /> All associations between bundle parent and bundle components are automatically performed. Each Bundle components defaults to a quantity of 1.
                   </Text>
                 </VerticalStack>
                 <HorizontalStack gap="3" align="end">
@@ -163,9 +149,11 @@ export default function Index() {
                       View product
                     </Button>
                   )}
-                  <Button loading={isLoading} primary onClick={generateProduct}>
-                    Generate a product
-                  </Button>
+                  <Link url="/app/buildbundle">
+                    <Button loading={isLoading} primary>
+                        Build a bundle
+                    </Button>
+                  </Link>
                 </HorizontalStack>
                 {actionData?.product && (
                   <Box
@@ -186,6 +174,55 @@ export default function Index() {
           </Layout.Section>
           <Layout.Section secondary>
             <VerticalStack gap="5">
+            <Card>
+                <VerticalStack gap="2">
+                  <Text as="h2" variant="headingMd">
+                    Pages
+                  </Text>
+                  <VerticalStack gap="2">
+                    <Divider />
+                    <HorizontalStack align="start">
+                      <Link url="/app">
+                        Home
+                      </Link>
+                    </HorizontalStack>
+                    <Divider />
+                    <HorizontalStack align="start">
+                      <Link url="/app/buildbundle">
+                        Build a bundle
+                      </Link>
+                    </HorizontalStack>
+                    <Divider />
+                  </VerticalStack>
+                </VerticalStack>
+              </Card>
+              <Card>
+                <VerticalStack gap="2">
+                  <Text as="h2" variant="headingMd">
+                    Instructions
+                  </Text>
+                  <List spacing="extraTight">
+                    <List.Item>
+                      Visit the {" "} 
+                      <Link url="/app/buildbundle">
+                        Build a bundle Page
+                      </Link>
+                    </List.Item>
+                    <List.Item>
+                      Enter your product title
+                    </List.Item>
+                    <List.Item>
+                      Enter your Bundle price
+                    </List.Item>
+                    <List.Item>
+                      Hit the 'Select product' button to select your bundle products
+                    </List.Item>
+                    <List.Item>
+                      Hit the green 'Generate a Bundle' button
+                    </List.Item>
+                  </List>
+                </VerticalStack>
+              </Card>
               <Card>
                 <VerticalStack gap="2">
                   <Text as="h2" variant="headingMd">
@@ -241,35 +278,6 @@ export default function Index() {
                       </Link>
                     </HorizontalStack>
                   </VerticalStack>
-                </VerticalStack>
-              </Card>
-              <Card>
-                <VerticalStack gap="2">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
-                  </Text>
-                  <List spacing="extraTight">
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
-                  </List>
                 </VerticalStack>
               </Card>
             </VerticalStack>

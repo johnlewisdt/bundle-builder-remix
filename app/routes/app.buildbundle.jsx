@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { json } from "@remix-run/node";
+// import createApp from "@shopify/app-bridge";
+// import { getSessionToken } from "@shopify/app-bridge/utilities";
+
 import {
   useActionData,
   useLoaderData,
@@ -32,7 +35,6 @@ export const loader = async ({ request }) => {
   return json({ shop: session.shop.replace(".myshopify.com", "") });
 };
 
-
 export async function action({ request }) {
   const { admin } = await authenticate.admin(request);
 
@@ -50,287 +52,263 @@ export async function action({ request }) {
     });
   });
 
-console.log("Length:"+requestData.products.length)
+  console.log("Length:"+requestData.products.length)
   const amounts = [];
   for (let i=0; i<requestData.products.length; i++) {
+    //todo: input qty
     amounts.push("1");  
   }
-  console.log("Qtys: "+amounts.toString());
-
   const component_quantities = "[" + amounts.join(",") + "]";
   console.log("Qtys: "+component_quantities);
 
   const component_reference = JSON.stringify(productVariantIds);
   console.log("refids: "+JSON.stringify(component_reference));
   const formData = requestData;
+  // console.log(`requestData: ${JSON.stringify(requestData)}`);
 
-  console.log(`requestData: ${JSON.stringify(requestData)}`);
-
-      const responseCreate = await admin.graphql(
-        `#graphql
-        mutation CreateProductBundle($input: ProductInput!) {
-          productCreate(input: $input) {
-            product {
-              title
-              variants(first: 1) {
-                edges {
-                  node {
-                    id
-                    price
-                    metafields(first: 2) {
-                      edges {
-                        node {
-                          key
-                          namespace
-                          value
-                        }
-                      }
+  const responseCreate = await admin.graphql(
+    `#graphql
+    mutation CreateProductBundle($input: ProductInput!) {
+      productCreate(input: $input) {
+        product {
+          title
+          variants(first: 1) {
+            edges {
+              node {
+                id
+                price
+                selectedOptions {
+                    name,
+                    value
+                }
+                metafields(first: 2) {
+                  edges {
+                    node {
+                      key
+                      namespace
+                      value
                     }
                   }
                 }
               }
             }
-            userErrors {
-              field
-              message
-            }
           }
-        }`,
-        {
-          variables: {
-            input: {
-              title: formData.bundleTitle,
-              variants: [
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }`,
+    {
+      variables: {
+        input: {
+          title: formData.bundleTitle,
+          variants: [
+            {
+              price: formData.bundlePrice,
+              options: ["Default"],
+              metafields: [
                 {
-                  price: formData.bundlePrice,
-                  metafields: [
-                    {
-                      key: "component_quantities",
-                      namespace: "custom",
-                      value: component_quantities,
-                    },
-                    {
-                      key: "component_reference",
-                      namespace: "custom" ,
-                      value: component_reference,
-                    }
-                  ]
+                  key: "component_quantities",
+                  namespace: "custom",
+                  value: component_quantities,
+                },
+                {
+                  key: "component_reference",
+                  namespace: "custom" ,
+                  value: component_reference,
                 }
               ]
             }
-          }
+          ]
         }
-      );
-      if (!responseCreate.ok) {
-        throw new Error('Bundle creation failed');
       }
-      // else {
-      //   console.log("RESPONSE: "+response.json());
-      // }
-      
-      const buildResponseJson = await responseCreate.json();
-      
-      console.log("response data is "+ JSON.stringify(buildResponseJson.data.productCreate));
-      console.log("parent variant id is "+ JSON.stringify(buildResponseJson.data.productCreate.product.variants.edges[0].node.id));
-      const componentParent = buildResponseJson.data.productCreate.product.variants.edges[0].node.id;
-      const componentParentEscaped = componentParent;
-
-
-
-      
-      // bulkAssociateVariants();
-      
-      // return {
-      //   product: buildResponseJson.data,
-      // };
-    // } catch (error) {
-    //   console.error('Error building Bundle:', error);
-    //   throw error;
-    // }
-  
-      
-    //  function bulkAssociateVariants() {
-      
-      const graphQLVariable = [];
-      productVariantIds.forEach(id => {
-        let variantJson = {
-          "id": id,
-          "quantity": 1,
-        }
-        graphQLVariable.push(variantJson);
-          
-          // metafields: [
-          //   {
-          //     key: "component_parents",
-          //     namespace: "custom",
-          //     value: componentParent,
-          //   }
-          // ]
-          //   return graphQLVariable;
-          console.log("GQL variable: "+graphQLVariable);
-        });
-        const jsonGqlVariable = JSON.stringify(graphQLVariable);
-        const jsonParsedVariable = JSON.parse(jsonGqlVariable);
-        console.log("GQL JSON variable: "+jsonGqlVariable);
-
-      // }
-        const responseRelate = await admin.graphql(
-        `#graphql
-        mutation CreateBundleComponents($input: [ProductVariantRelationshipUpdateInput!]!) {
-          productVariantRelationshipBulkUpdate(input: $input) {
-            parentProductVariants {
+    }
+    );
+  const buildResponseJson = await responseCreate.json();
+  if (!responseCreate.ok) {
+    throw new Error('Bundle creation failed');
+  }
+  else {
+    console.log("OK"+JSON.stringify(buildResponseJson));
+  }
+  // console.log("response data is "+ JSON.stringify(buildResponseJson.data.productCreate));
+  // console.log("parent variant id is "+ JSON.stringify(buildResponseJson.data.productCreate.product.variants.edges[0].node.id));
+  const componentParent = buildResponseJson.data.productCreate.product.variants.edges[0].node.id;
+  const componentParentEscaped = componentParent;
+    
+  const graphQLVariable = [];
+  productVariantIds.forEach(id => {
+    let variantJson = {
+      "id": id,
+      "quantity": 1,
+    }
+    graphQLVariable.push(variantJson);
+  });
+  console.log("GQL variable: "+graphQLVariable);
+  const jsonGqlVariable = JSON.stringify(graphQLVariable);
+  const jsonParsedVariable = JSON.parse(jsonGqlVariable);
+  console.log("GQL JSON variable: "+jsonGqlVariable);
+  const responseRelate = await admin.graphql(
+    `#graphql
+    mutation CreateBundleComponents($input: [ProductVariantRelationshipUpdateInput!]!) {
+      productVariantRelationshipBulkUpdate(input: $input) {
+        parentProductVariants {
+          id
+          productVariantComponents(first: 10) {
+            nodes{
               id
-              productVariantComponents(first: 10) {
-                nodes{
-                  id
-                  quantity
-                  productVariant {
-                    id
-                  }
-                }
+              quantity
+              productVariant {
+                id
               }
-            }
-            userErrors {
-              code
-              field
-              message
-            }
-          }
-        }`,
-        {
-          variables: {
-            input: {
-              parentProductVariantId: `${componentParentEscaped}`,
-              productVariantRelationshipsToCreate: jsonParsedVariable
             }
           }
         }
-      );
-      const responseRelateJson = await responseRelate.json();
-      console.log("response2 "+JSON.stringify(responseRelateJson))
-
-      const enableComponents = await admin.graphql(
-        `#graphql
-        mutation productVariantUpdate($input: ProductVariantInput!) {
-          productVariantUpdate(input: $input) {
-            productVariant {
-              id
-              requiresComponents
-            }
-            userErrors {
-              field
-              message
-            }
-          }
-        }`,
-        {
-          variables: {
-              input: {
-                id: `${componentParentEscaped}`,
-                requiresComponents: true,
-              }
-          }
+        userErrors {
+          code
+          field
+          message
         }
-      );
-      if (!enableComponents.ok) {
-        throw new Error('Component link failed');
-      } else {
-        console.log("Component updated OK");
       }
-
-      const enableComponentsJson = await enableComponents.json();
-      console.log("component response "+JSON.stringify(enableComponentsJson))
-
-
-
-      const bundleDataRef = formData;
-
-      for (const product of bundleDataRef.products) {
-        await createQuery(product);
-      }
-
-      async function createQuery(product) {
-
-        const metafield = [{
-          "id": `${componentParentEscaped}`, 
-          "component_reference": {
-            value: JSON.parse(component_reference)
-          },
-          "component_quantities": {
-            value: JSON.parse(component_quantities) 
-          }
-        }];
-
-        console.log("METAFIELD: "+JSON.stringify(metafield))
-
-        const variableData = {
-          variables: {
-            productId: product.productId,
-            variants: product.productVariantId.map(variantId => ({
-              id: variantId,
-              metafields: 
-                {
-                  key: "component_parents",
-                  namespace: "custom",
-                  value: JSON.stringify(metafield)
-                }
-            }))
-          }
+    }`,
+    {
+      variables: {
+        input: {
+          parentProductVariantId: `${componentParentEscaped}`,
+          productVariantRelationshipsToCreate: jsonParsedVariable
         }
-        const responseFinal = await admin.graphql(
-          `#graphql
-            mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
-              productVariantsBulkUpdate(productId: $productId, variants: $variants) {
-                product {
-                  id
-                }
-                productVariants {
-                  id
-                  metafields(first: 2) {
-                    edges {
-                      node {
-                        namespace
-                        key
-                        value
-                      }
-                    }
-                  }
-                }
-                userErrors {
-                  field
-                  message
-                }
-              }
-            }`,
+      }
+    }
+  );
+  const responseRelateJson = await responseRelate.json();
+  console.log("response2 "+JSON.stringify(responseRelateJson))
+
+  const enableComponents = await admin.graphql(
+    `#graphql
+    mutation productVariantUpdate($input: ProductVariantInput!) {
+      productVariantUpdate(input: $input) {
+        productVariant {
+          id
+          requiresComponents
+        }
+        userErrors {
+          field
+          message
+        }
+      }
+    }`,
+    {
+      variables: {
+          input: {
+            id: `${componentParentEscaped}`,
+            requiresComponents: true,
+          }
+      }
+    }
+  );
+  if (!enableComponents.ok) {
+    throw new Error('Component link failed');
+  } else {
+    console.log("Component updated OK");
+  }
+
+  const enableComponentsJson = await enableComponents.json();
+  console.log("component response "+JSON.stringify(enableComponentsJson));
+
+  const bundleDataRef = formData;
+
+  for (const product of bundleDataRef.products) {
+    await createQuery(product);
+  }
+
+  async function createQuery(product) {
+
+    const metafield = [{
+      "id": `${componentParentEscaped}`, 
+      "component_reference": {
+        value: JSON.parse(component_reference)
+      },
+      "component_quantities": {
+        value: JSON.parse(component_quantities) 
+      }
+    }];
+
+    console.log("METAFIELD: "+JSON.stringify(metafield))
+
+    const variableData = {
+      variables: {
+        productId: product.productId,
+        variants: product.productVariantId.map(variantId => ({
+          id: variantId,
+          metafields: 
             {
-              variables: variableData.variables,
+              key: "component_parents",
+              namespace: "custom",
+              value: JSON.stringify(metafield)
             }
-          );
-         
-        
-           let responseFinalJson = await responseFinal.json();
-          return(
-          {
-             product: responseFinalJson.data.productVariantsBulkUpdate.product,
-           } 
-           );
+        }))
       }
- 
-    //  const responseCreateJson = await responseCreate.json();
+    }
+    const responseFinal = await admin.graphql(
+      `#graphql
+        mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
+          productVariantsBulkUpdate(productId: $productId, variants: $variants) {
+            product {
+              id
+            }
+            productVariants {
+              id
+              metafields(first: 2) {
+                edges {
+                  node {
+                    namespace
+                    key
+                    value
+                  }
+                }
+              }
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }`,
+        {
+          variables: variableData.variables,
+        }
+      );
+    
+      let responseFinalJson = await responseFinal.json();
+      return(
+        {
+          product: responseFinalJson.data.productVariantsBulkUpdate.product,
+        } 
+      );
+    }
+//  const responseCreateJson = await responseCreate.json();
 
-      return {
-        product: "JOBS A GOOD UN",
-      };
+  return {
+    product: "Bundle created successfully.",
+  };
 }
 
 export default function BuildBundle() {
   
   const [bundleTitle, setBundleTitle] = useState("");
   const [bundlePrice, setBundlePrice] = useState("");
+  const [qty, setQty] = useState("");
 
   const nav = useNavigation();
   const { shop } = useLoaderData();
   const actionData = useActionData();
+
+
+  const isLoading =
+  ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
+
 
   const productForm =  useLoaderData();
   const errors = useActionData()?.errors || {};
@@ -342,6 +320,7 @@ export default function BuildBundle() {
   const [formData, setFormData] = useState({
     bundleTitle: "",
     bundlePrice: "",
+    quantity: qty,
     selectedProducts: [],
   });
 
@@ -352,6 +331,14 @@ export default function BuildBundle() {
     setFormData({
       ...formData,
       bundleTitle: value,
+    });
+  };
+  
+  const handleVariantQtyChange = (value) => {
+    setQty(value);
+    setFormData({
+      ...formData,
+      quantity: value,
     });
   };
 
@@ -366,8 +353,6 @@ export default function BuildBundle() {
 
   const submit = useSubmit();
 
-  const isLoading =
-    ["loading", "submitting"].includes(nav.state) && nav.formMethod === "POST";
 
   const productId = actionData?.product?.id?.replace(
     "gid://shopify/Product/",
@@ -408,14 +393,25 @@ export default function BuildBundle() {
     const bundledProducts = formState.selectedProducts;
     return (
       bundledProducts.map((bundledProducts,index) => 
-        <HorizontalStack key={bundledProducts.productId} blockAlign="center" gap={"5"}>
-          <Thumbnail
-            source={bundledProducts.productImage || ImageMajor}
-            alt={bundledProducts.productAlt}
-          />
-          <Text as="span" variant="headingMd" fontWeight="semibold">
-            {bundledProducts.productTitle}
-          </Text>
+        <HorizontalStack key={bundledProducts.productId} align="space-between" blockAlign="center" gap={"5"}>
+          <HorizontalStack key={bundledProducts.productId} align="start" blockAlign="center" gap={"5"}>
+            <Thumbnail
+              source={bundledProducts.productImage || ImageMajor}
+              alt={bundledProducts.productAlt}
+            />
+            <Text as="span" variant="headingMd" fontWeight="semibold">
+              {bundledProducts.productTitle}
+            </Text>
+          </HorizontalStack>
+          <HorizontalStack key={bundledProducts.productId} align="end" blockAlign="center" gap={"5"}>
+            <TextField
+              label="Quantity"
+              type="number"
+              value={qty}
+              onChange={handleVariantQtyChange}
+              autoComplete="off"
+            />
+          </HorizontalStack>
         </HorizontalStack>
       )
     )
@@ -428,7 +424,6 @@ export default function BuildBundle() {
       setBundlePrice("");
     }
   }, [productId]);
-  
   
   const CreateProductBundle = () => {
    
@@ -447,12 +442,12 @@ export default function BuildBundle() {
   return (
     <Page>
       <ui-title-bar title="Build a bundle">
-        <button variant="primary" onClick={CreateProductBundle}>
-          Generate a product
-        </button>
-        <button onClick={CreateProductBundle}>
+        {/* <button onClick={GotoBundler} variant="primary">
           Build a bundle
         </button>
+        <button onClick={GotoBundler}>
+          Build a bundle
+        </button> */}
       </ui-title-bar>
       <VerticalStack gap="5">
         <Layout>
@@ -519,13 +514,20 @@ export default function BuildBundle() {
                   align="space-between"
                   blockAlign="start"
                 >
-                  
                 </HorizontalStack>
               </VerticalStack>
             </Card>
 
 
                 </VerticalStack>
+
+                <HorizontalStack gap="3" align="start">
+                <Link url="/app">
+                  <Button loading={isLoading}>
+                      Home
+                  </Button>
+                </Link>
+                </HorizontalStack>
                 <HorizontalStack gap="3" align="end">
                   {actionData?.product && (
                     <Button
@@ -562,7 +564,50 @@ export default function BuildBundle() {
               <Card>
                 <VerticalStack gap="2">
                   <Text as="h2" variant="headingMd">
-                    App template specs
+                    Pages
+                  </Text>
+                  <VerticalStack gap="2">
+                    <Divider />
+                    <HorizontalStack align="start">
+                      <Link url="/app">
+                        Home
+                      </Link>
+                    </HorizontalStack>
+                    <Divider />
+                    <HorizontalStack align="start">
+                      <Link url="/app/buildbundle">
+                        Build a bundle
+                      </Link>
+                    </HorizontalStack>
+                    <Divider />
+                  </VerticalStack>
+                </VerticalStack>
+              </Card>
+              <Card>
+                <VerticalStack gap="2">
+                  <Text as="h2" variant="headingMd">
+                    Instructions
+                  </Text>
+                  <List spacing="extraTight">
+                    <List.Item>
+                      Enter your product title
+                    </List.Item>
+                    <List.Item>
+                      Enter your Bundle price
+                    </List.Item>
+                    <List.Item>
+                      Hit the 'Select product' button to select your bundle products
+                    </List.Item>
+                    <List.Item>
+                      Hit the green 'Generate a Bundle' button
+                    </List.Item>
+                  </List>
+                </VerticalStack>
+              </Card>
+              <Card>
+                <VerticalStack gap="2">
+                  <Text as="h2" variant="headingMd">
+                    App specs
                   </Text>
                   <VerticalStack gap="2">
                     <Divider />
@@ -614,35 +659,6 @@ export default function BuildBundle() {
                       </Link>
                     </HorizontalStack>
                   </VerticalStack>
-                </VerticalStack>
-              </Card>
-              <Card>
-                <VerticalStack gap="2">
-                  <Text as="h2" variant="headingMd">
-                    Next steps
-                  </Text>
-                  <List spacing="extraTight">
-                    <List.Item>
-                      Build an{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/getting-started/build-app-example"
-                        target="_blank"
-                      >
-                        {" "}
-                        example app
-                      </Link>{" "}
-                      to get started
-                    </List.Item>
-                    <List.Item>
-                      Explore Shopify’s API with{" "}
-                      <Link
-                        url="https://shopify.dev/docs/apps/tools/graphiql-admin-api"
-                        target="_blank"
-                      >
-                        GraphiQL
-                      </Link>
-                    </List.Item>
-                  </List>
                 </VerticalStack>
               </Card>
             </VerticalStack>
