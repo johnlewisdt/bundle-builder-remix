@@ -2,7 +2,7 @@
 
 name = "Bundle Middleware"
 client_id = "af1ae5f21970014e3a507998ded09ae5"
-application_url = "https://tournaments-islamic-copyright-aberdeen.trycloudflare.com"
+application_url = "https://indie-bg-fathers-americas.trycloudflare.com"
 embedded = true
 
 [access_scopes]
@@ -11,9 +11,9 @@ scopes = "write_products"
 
 [auth]
 redirect_urls = [
-  "https://tournaments-islamic-copyright-aberdeen.trycloudflare.com/auth/callback",
-  "https://tournaments-islamic-copyright-aberdeen.trycloudflare.com/auth/shopify/callback",
-  "https://tournaments-islamic-copyright-aberdeen.trycloudflare.com/api/auth/callback"
+  "https://indie-bg-fathers-americas.trycloudflare.com/auth/callback",
+  "https://indie-bg-fathers-americas.trycloudflare.com/auth/shopify/callback",
+  "https://indie-bg-fathers-americas.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
