@@ -1,13 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { json } from "@remix-run/node";
-// import { useQuery } from '@apollo/client';
 import {
   useActionData,
   useLoaderData,
   useNavigation,
   useSubmit,
 } from "@remix-run/react";
-import gql from 'graphql-tag';
 import {
   Page,
   Layout,
@@ -20,8 +18,6 @@ import {
   Divider,
   List,
   Link,
-  ResourceList,
-  ResourceItem,
 } from "@shopify/polaris";
 
 import { authenticate } from "../shopify.server";
@@ -32,6 +28,7 @@ export const loader = async ({ request }) => {
   return json({ shop: session.shop.replace(".myshopify.com", "") });
 };
 
+// Create a product sample function
 export async function action({ request }) {
   const { admin } = await authenticate.admin(request);
 

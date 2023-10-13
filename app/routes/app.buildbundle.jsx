@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
 import { json } from "@remix-run/node";
-// import createApp from "@shopify/app-bridge";
-// import { getSessionToken } from "@shopify/app-bridge/utilities";
-
 import {
   useActionData,
   useLoaderData,
@@ -58,13 +55,13 @@ export async function action({ request }) {
     //todo: input qty
     amounts.push("1");  
   }
+  // create component_quantities metafield expected content - Product List Array
   const component_quantities = "[" + amounts.join(",") + "]";
-  console.log("Qtys: "+component_quantities);
 
+  // create component_quantities metafield expected content - JSON
   const component_reference = JSON.stringify(productVariantIds);
-  console.log("refids: "+JSON.stringify(component_reference));
+
   const formData = requestData;
-  // console.log(`requestData: ${JSON.stringify(requestData)}`);
 
   const responseCreate = await admin.graphql(
     `#graphql
@@ -130,14 +127,11 @@ export async function action({ request }) {
   if (!responseCreate.ok) {
     throw new Error('Bundle creation failed');
   }
-  else {
-    console.log("OK"+JSON.stringify(buildResponseJson));
-  }
-  // console.log("response data is "+ JSON.stringify(buildResponseJson.data.productCreate));
-  // console.log("parent variant id is "+ JSON.stringify(buildResponseJson.data.productCreate.product.variants.edges[0].node.id));
+  // Capture the response data from the bundle, retrieve the Parent Product GraphQL ID
   const componentParent = buildResponseJson.data.productCreate.product.variants.edges[0].node.id;
-  const componentParentEscaped = componentParent;
-    
+  const componentParentEscaped = componentParent; // left in case of special chars
+  
+  // Create a GraphQL variable for passing variant IDs to Bundle Components mutation
   const graphQLVariable = [];
   productVariantIds.forEach(id => {
     let variantJson = {
@@ -146,10 +140,11 @@ export async function action({ request }) {
     }
     graphQLVariable.push(variantJson);
   });
-  console.log("GQL variable: "+graphQLVariable);
+
   const jsonGqlVariable = JSON.stringify(graphQLVariable);
   const jsonParsedVariable = JSON.parse(jsonGqlVariable);
-  console.log("GQL JSON variable: "+jsonGqlVariable);
+
+  // Create the bundle component relationship
   const responseRelate = await admin.graphql(
     `#graphql
     mutation CreateBundleComponents($input: [ProductVariantRelationshipUpdateInput!]!) {
@@ -183,6 +178,7 @@ export async function action({ request }) {
     }
   );
   const responseRelateJson = await responseRelate.json();
+  //Log the response to the terminal for verification
   console.log("response2 "+JSON.stringify(responseRelateJson))
 
   const enableComponents = await admin.graphql(
@@ -215,6 +211,8 @@ export async function action({ request }) {
   }
 
   const enableComponentsJson = await enableComponents.json();
+
+  // Await the response, log the terminal
   console.log("component response "+JSON.stringify(enableComponentsJson));
 
   const bundleDataRef = formData;
@@ -225,6 +223,7 @@ export async function action({ request }) {
 
   async function createQuery(product) {
 
+    // Create the relationship metafields for the Child Product variants - part 1
     const metafield = [{
       "id": `${componentParentEscaped}`, 
       "component_reference": {
@@ -235,8 +234,7 @@ export async function action({ request }) {
       }
     }];
 
-    console.log("METAFIELD: "+JSON.stringify(metafield))
-
+    // Create the relationship metafields for the Child Product variants - part 2
     const variableData = {
       variables: {
         productId: product.productId,
@@ -251,6 +249,8 @@ export async function action({ request }) {
         }))
       }
     }
+
+    // Bulk update the variants with the metafield value to complete the relationship and we're done
     const responseFinal = await admin.graphql(
       `#graphql
         mutation productVariantsBulkUpdate($productId: ID!, $variants: [ProductVariantsBulkInput!]!) {
@@ -290,11 +290,13 @@ export async function action({ request }) {
     }
 //  const responseCreateJson = await responseCreate.json();
 
+  // Return a result to the page - this is a placeholder - see responseFinalJson for structure
   return {
     product: "Bundle created successfully.",
   };
 }
 
+// The page itself - construct the request to for processing by action(), render page
 export default function BuildBundle() {
   
   const [bundleTitle, setBundleTitle] = useState("");
@@ -324,9 +326,6 @@ export default function BuildBundle() {
     selectedProducts: [],
   });
 
-  // const handleBundleTitleChange = (/** @type {React.SetStateAction<string>} */ value) => setBundleTitle(value);
-  // const handleBundlePriceChange = (/** @type {React.SetStateAction<string>} */ value) => setBundlePrice(value);
-
   const handleBundleTitleChange = (value) => {
     setFormData({
       ...formData,
@@ -349,16 +348,14 @@ export default function BuildBundle() {
     });
   };
 
-  // const handleSubmit = (event) => console.log(event) 
-
   const submit = useSubmit();
-
 
   const productId = actionData?.product?.id?.replace(
     "gid://shopify/Product/",
     ""
   );
 
+  // render the product selector
   async function selectProduct() {
   
     const selectedProducts = await window.shopify.resourcePicker({
@@ -389,6 +386,7 @@ export default function BuildBundle() {
     }
 
   }
+  // Return the bundle contents GUI to the page
   const BundleProducts = () => {
     const bundledProducts = formState.selectedProducts;
     return (
@@ -403,6 +401,8 @@ export default function BuildBundle() {
               {bundledProducts.productTitle}
             </Text>
           </HorizontalStack>
+          {/*
+          Adds a Quantity selector - needs to loop - currently hardcoded to 1 per item
           <HorizontalStack key={bundledProducts.productId} align="end" blockAlign="center" gap={"5"}>
             <TextField
               label="Quantity"
@@ -411,12 +411,13 @@ export default function BuildBundle() {
               onChange={handleVariantQtyChange}
               autoComplete="off"
             />
-          </HorizontalStack>
+          </HorizontalStack> */}
         </HorizontalStack>
       )
     )
   }
 
+  // If a productId exists in the action return value, show the toast and clear the form fields
   useEffect(() => {
     if (productId) {
       shopify.toast.show("Bundle created");
@@ -425,6 +426,7 @@ export default function BuildBundle() {
     }
   }, [productId]);
   
+  // Build and submit request to the action() for use in GraphQL
   const CreateProductBundle = () => {
    
     const bundleData = {
@@ -433,8 +435,6 @@ export default function BuildBundle() {
       products: formState.selectedProducts,
     };
 
-    console.log(JSON.stringify(bundleData));
-
     // Note: remix ONLY sends useSubmit data as application/x-www-form-urlencoded - so must be coerced to JSON
     submit({json: JSON.stringify(bundleData)}, { replace: false, method: "POST" });
   };
@@ -442,12 +442,6 @@ export default function BuildBundle() {
   return (
     <Page>
       <ui-title-bar title="Build a bundle">
-        {/* <button onClick={GotoBundler} variant="primary">
-          Build a bundle
-        </button>
-        <button onClick={GotoBundler}>
-          Build a bundle
-        </button> */}
       </ui-title-bar>
       <VerticalStack gap="5">
         <Layout>
@@ -516,10 +510,8 @@ export default function BuildBundle() {
                 >
                 </HorizontalStack>
               </VerticalStack>
-            </Card>
-
-
-                </VerticalStack>
+            </Card> 
+          </VerticalStack>
 
                 <HorizontalStack gap="3" align="start">
                 <Link url="/app">
