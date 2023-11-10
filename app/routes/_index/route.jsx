@@ -23,8 +23,8 @@ export default function App() {
   return (
     <div className="index">
       <div className="content">
-        <h1>[your app] - Bundle products with a few clicks</h1>
-        <p>This is the [your app] application. It handles all the legwork for making a bundle, so you don't have to.</p>
+        <h1>JLDT Bundle Builder</h1>
+        <p>Bundle products the proper way</p>
         {showForm && (
           <Form method="post" action="/auth/login">
             <label>
@@ -37,13 +37,13 @@ export default function App() {
         )}
         <ul>
           <li>
-            <strong>Master product creation</strong>. Easily add your main Bundle product in the simplest form. 
+            <strong>Shopify style picker</strong>. Pick your bundled products in the way you'd expect.
           </li>
           <li>
-            <strong>Multiple product browser</strong>. Point and click, or instant search for your bundle items.
+            <strong>Discount compatible</strong>. Fully compatible with standard product discounts - no need to script.
           </li>
           <li>
-            <strong>Automatic Metafield relations</strong>. Does all the legwork when it comes to associating your bundle and its components.
+            <strong>Automatic relationships</strong>. Automatically creates the relationships required to check out as a Bundle. Follows the Shopify Bundle API spec, for easy customisation.
           </li>
         </ul>
       </div>

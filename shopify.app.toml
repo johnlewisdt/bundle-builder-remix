@@ -1,27 +1,23 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-name = "Bundle Middleware"
-client_id = "af1ae5f21970014e3a507998ded09ae5"
-application_url = "https://indie-bg-fathers-americas.trycloudflare.com"
+name = "jldt-bundles"
+client_id = "2e669c4ea09cbd82703810194af7878b"
+application_url = "https://jl-bundle-builder.fly.dev"
 embedded = true
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+# Learn mqore at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
 scopes = "write_products"
 
 [auth]
-redirect_urls = [
-  "https://indie-bg-fathers-americas.trycloudflare.com/auth/callback",
-  "https://indie-bg-fathers-americas.trycloudflare.com/auth/shopify/callback",
-  "https://indie-bg-fathers-americas.trycloudflare.com/api/auth/callback"
-]
+redirect_urls = [ "https://jl-bundle-builder.fly.dev/auth/callback" ]
 
 [webhooks]
-api_version = "2023-07"
+api_version = "2023-10"
 
 [pos]
 embedded = false
 
 [build]
 automatically_update_urls_on_dev = true
-dev_store_url = "john-lewis-sandbox.myshopify.com"
+dev_store_url = "johnlewisdesign.myshopify.com"

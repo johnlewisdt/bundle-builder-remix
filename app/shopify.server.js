@@ -9,13 +9,13 @@ import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prism
 import { restResources } from "@shopify/shopify-api/rest/admin/2023-07";
 
 import prisma from "./db.server";
-
+const scopeOverride = "read_metaobject_definitions, write_metaobject_definitions, write_metaobjects, read_metaobjects, write_products, read_products, write_product_listings, read_product_listings, read_all_cart_transforms, write_cart_transforms, read_cart_transforms";
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: LATEST_API_VERSION,
-  scopes: process.env.SCOPES?.split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || "",
+  scopes: scopeOverride.split(","),
+  appUrl: "https://jl-bundle-builder.fly.dev/",
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
